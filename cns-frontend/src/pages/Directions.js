@@ -5,7 +5,7 @@ import useUserLocation from "../hooks/useUserLocation";
 
 const Directions = () => {
   const userLocation = useUserLocation();
-  const searchParams = useMemo(() => new URLSearchParams(useLocation().search));
+  const searchParams = new URLSearchParams(useLocation().search);
   
   // ✅ Ensure lat/lng are valid numbers
   const destination = useMemo(() => {

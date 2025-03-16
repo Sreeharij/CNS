@@ -1,9 +1,9 @@
 import React from "react";
-import { Marker } from "@react-google-maps/api";
+import { MarkerF } from "@react-google-maps/api";
 
 const UserMarker = ({ position }) => {
   return position ? (
-    <Marker position={position} icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }} />
+    <MarkerF position={position} icon={{ url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" }} />
   ) : null;
 };
 
