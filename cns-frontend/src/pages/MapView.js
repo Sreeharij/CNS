@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker, DirectionsRenderer } from '@react-google-maps/api';
 
@@ -6,7 +6,7 @@ const containerStyle = { width: '100vw', height: '100vh' };
 
 function MapView() {
   const location = useLocation();
-  const destination = location.state || {}; 
+  const destination = location.state || {};
 
   const lat = destination?.lat ? parseFloat(destination.lat) : null;
   const lng = destination?.lng ? parseFloat(destination.lng) : null;
@@ -21,6 +21,8 @@ function MapView() {
   const [directionsResponse, setDirectionsResponse] = useState(null);
   const [distance, setDistance] = useState('');
   const [duration, setDuration] = useState('');
+  const [steps, setSteps] = useState([]);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -59,10 +61,17 @@ function MapView() {
       setDirectionsResponse(results);
       setDistance(results.routes[0].legs[0].distance.text);
       setDuration(results.routes[0].legs[0].duration.text);
+      setSteps(results.routes[0].legs[0].steps);
     } catch (error) {
       console.error("Error fetching directions:", error);
     }
   }
+
+  const recenterMap = () => {
+    if (mapRef.current && userLocation) {
+      mapRef.current.panTo(userLocation);
+    }
+  };
 
   if (!isLoaded) return <div>Loading map...</div>;
 
@@ -73,11 +82,12 @@ function MapView() {
         zoom={14}
         mapContainerStyle={containerStyle}
         options={{
-          zoomControl: false,
+          zoomControl: true,
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: false,
         }}
+        onLoad={(map) => (mapRef.current = map)}
       >
         {userLocation && <Marker position={userLocation} label="You" />}
         {lat && lng && <Marker position={{ lat, lng }} label="Destination" />}
@@ -86,14 +96,38 @@ function MapView() {
 
       <div style={{
         position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
-        background: 'white', padding: '10px', borderRadius: '5px', boxShadow: '0px 2px 10px rgba(0,0,0,0.2)',
+        background: 'white', padding: '10px', borderRadius: '10px', boxShadow: '0px 2px 10px rgba(0,0,0,0.2)',
+        width: '90%', maxWidth: '400px', textAlign: 'center'
       }}>
-        <strong>Destination:</strong> {name}<br />
-        <button onClick={() => setDirectionsResponse(null)} style={{ marginTop: '5px', padding: '5px 10px' }}>Clear Route</button>
-        <div style={{ marginTop: '10px' }}>
-          <strong>Distance:</strong> {distance} | <strong>Duration:</strong> {duration}
-        </div>
+        <h3>{name}</h3>
+        <p><strong>Distance:</strong> {distance} | <strong>Duration:</strong> {duration}</p>
+        <button 
+          onClick={() => setDirectionsResponse(null)} 
+          style={{ padding: '8px 12px', margin: '5px', borderRadius: '5px', border: 'none', background: '#ff4d4d', color: 'white' }}
+        >Clear Route</button>
+        <button 
+          onClick={recenterMap} 
+          style={{ padding: '8px 12px', margin: '5px', borderRadius: '5px', border: 'none', background: '#4285F4', color: 'white' }}
+        >Recenter</button>
       </div>
+
+      {steps.length > 0 && (
+        <div style={{
+          position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
+          background: 'white', padding: '10px', borderRadius: '10px', boxShadow: '0px 2px 10px rgba(0,0,0,0.2)',
+          width: '90%', maxWidth: '400px', textAlign: 'left', maxHeight: '200px', overflowY: 'auto'
+        }}>
+          <h4>Turn-by-Turn Directions</h4>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {steps.map((step, index) => (
+              <li key={index} style={{ marginBottom: '5px' }}>
+                <span dangerouslySetInnerHTML={{ __html: step.instructions }} />
+                <small style={{ color: 'gray' }}> ({step.distance.text})</small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
