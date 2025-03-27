@@ -1,28 +1,58 @@
-import React, { useState, useEffect } from "react";
-import MapComponent from "../components/MapComponent";
-import SearchBar from "../components/SearchBar";
-import useUserLocation from "../hooks/useUserLocation";
-import { fetchLocations } from "../services/locationService";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { db, storage } from "../firebase/config";
+import { collection, getDocs } from "firebase/firestore";
+import { getDownloadURL, ref } from "firebase/storage";
+import LocationCard from "../components/LocationCard";
+import "../styles/Home.css";
 
 const Home = () => {
-  const userLocation = useUserLocation();  // Live GPS tracking
-  const [locations, setLocations] = useState([]); // Stores campus locations
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const getLocations = async () => {
-      const data = await fetchLocations();
-      setLocations(data);
+    const fetchLocations = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "locations"));
+        const locationsData = await Promise.all(
+          querySnapshot.docs.map(async (doc) => {
+            const location = doc.data();
+            const imageUrl = await getDownloadURL(ref(storage, location.imagePath));
+            return { id: doc.id, ...location, imageUrl };
+          })
+        );
+        setLocations(locationsData);
+      } catch (error) {
+        console.error("Error fetching locations:", error);
+      } finally {
+        setLoading(false);
+      }
     };
-    getLocations();
+
+    fetchLocations();
   }, []);
 
-  return (
-    <div className="w-screen h-screen flex flex-col">
-      {/* Search Bar */}
-      <SearchBar locations={locations} />
+  const handleCardClick = (location) => {
+    navigate("/map", { state: location }); // ✅ Pass entire location object in state
+  };
 
-      {/* Google Map */}
-      <MapComponent userLocation={userLocation} locations={locations} />
+  return (
+    <div className="home-container">
+      <h2>Campus Locations</h2>
+      {loading ? (
+        <div className="loader">Loading...</div>
+      ) : (
+        <div className="grid-container">
+          {locations.map((location) => (
+            <LocationCard
+              key={location.id}
+              location={location}
+              onClick={() => handleCardClick(location)} // Pass full location object
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
