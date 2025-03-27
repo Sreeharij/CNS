@@ -19,19 +19,24 @@ function MapView() {
 
   const [userLocation, setUserLocation] = useState(null);
   const [directionsResponse, setDirectionsResponse] = useState(null);
-  const [distance, setDistance] = useState('');
-  const [duration, setDuration] = useState('');
+  const [currentStep, setCurrentStep] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [steps, setSteps] = useState([]);
+  const watchId = useRef(null);
   const mapRef = useRef(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      navigator.geolocation.watchPosition(
+      watchId.current = navigator.geolocation.watchPosition(
         (position) => {
           setUserLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
+
+          if (isNavigating) {
+            updateNavigation(position.coords.latitude, position.coords.longitude);
+          }
         },
         (error) => console.error("Error getting location:", error),
         { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
@@ -39,7 +44,11 @@ function MapView() {
     } else {
       console.error("Geolocation is not supported");
     }
-  }, []);
+
+    return () => {
+      if (watchId.current) navigator.geolocation.clearWatch(watchId.current);
+    };
+  }, [isNavigating]);
 
   useEffect(() => {
     if (isLoaded && userLocation && lat !== null && lng !== null) {
@@ -59,19 +68,72 @@ function MapView() {
       });
 
       setDirectionsResponse(results);
-      setDistance(results.routes[0].legs[0].distance.text);
-      setDuration(results.routes[0].legs[0].duration.text);
       setSteps(results.routes[0].legs[0].steps);
+      setCurrentStep(0);
     } catch (error) {
       console.error("Error fetching directions:", error);
     }
   }
 
-  const recenterMap = () => {
+  function startNavigation() {
+    setIsNavigating(true);
+  }
+
+  function stopNavigation() {
+    setIsNavigating(false);
+    setDirectionsResponse(null);
+    setCurrentStep(null);
+  }
+
+  function recenterMap() {
     if (mapRef.current && userLocation) {
       mapRef.current.panTo(userLocation);
     }
-  };
+  }
+
+  function updateNavigation(lat, lng) {
+    if (!steps || steps.length === 0) return;
+
+    const step = steps[currentStep];
+    const nextStep = steps[currentStep + 1];
+
+    if (nextStep) {
+      const stepEnd = step.end_location;
+      const distanceToNextTurn = getDistance(lat, lng, stepEnd.lat(), stepEnd.lng());
+
+      if (distanceToNextTurn < 30) {
+        setCurrentStep((prev) => prev + 1);
+      }
+    }
+  }
+
+  function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // distance in meters
+  }
+
+  function getTurnDirection(step) {
+    if (!step) return "";
+
+    const distance = step.distance.text;
+    const maneuver = step.maneuver;
+
+    let arrow = "⬆️";
+    if (maneuver?.includes("left")) arrow = "⬅️";
+    if (maneuver?.includes("right")) arrow = "➡️";
+
+    return `${arrow} in ${distance}`;
+  }
 
   if (!isLoaded) return <div>Loading map...</div>;
 
@@ -79,10 +141,10 @@ function MapView() {
     <div style={{ position: 'relative', height: '100vh', width: '100vw' }}>
       <GoogleMap
         center={userLocation || { lat, lng }}
-        zoom={14}
+        zoom={16}
         mapContainerStyle={containerStyle}
         options={{
-          zoomControl: true,
+          zoomControl: false,
           streetViewControl: false,
           mapTypeControl: false,
           fullscreenControl: false,
@@ -94,42 +156,34 @@ function MapView() {
         {directionsResponse && <DirectionsRenderer directions={directionsResponse} />}
       </GoogleMap>
 
-      <div style={{
-        position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
-        background: 'white', padding: '10px', borderRadius: '10px', boxShadow: '0px 2px 10px rgba(0,0,0,0.2)',
-        width: '90%', maxWidth: '400px', textAlign: 'center'
-      }}>
-        <h3>{name}</h3>
-        <p><strong>Distance:</strong> {distance} | <strong>Duration:</strong> {duration}</p>
-        <button 
-          onClick={() => setDirectionsResponse(null)} 
-          style={{ padding: '8px 12px', margin: '5px', borderRadius: '5px', border: 'none', background: '#ff4d4d', color: 'white' }}
-        >Clear Route</button>
-        <button 
-          onClick={recenterMap} 
-          style={{ padding: '8px 12px', margin: '5px', borderRadius: '5px', border: 'none', background: '#4285F4', color: 'white' }}
-        >Recenter</button>
-      </div>
-
-      {steps.length > 0 && (
+      {/* Floating Navigation Box */}
+      {isNavigating && currentStep !== null && (
         <div style={{
-          position: 'absolute', bottom: '10px', left: '50%', transform: 'translateX(-50%)',
-          background: 'white', padding: '10px', borderRadius: '10px', boxShadow: '0px 2px 10px rgba(0,0,0,0.2)',
-          width: '90%', maxWidth: '400px', textAlign: 'left', maxHeight: '200px', overflowY: 'auto'
+          position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
+          background: 'black', color: 'white', padding: '15px', borderRadius: '10px',
+          boxShadow: '0px 2px 10px rgba(0,0,0,0.2)', textAlign: 'center', fontSize: '18px'
         }}>
-          <h4>Turn-by-Turn Directions</h4>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {steps.map((step, index) => (
-              <li key={index} style={{ marginBottom: '5px' }}>
-                <span dangerouslySetInnerHTML={{ __html: step.instructions }} />
-                <small style={{ color: 'gray' }}> ({step.distance.text})</small>
-              </li>
-            ))}
-          </ul>
+          <strong>{getTurnDirection(steps[currentStep])}</strong>
         </div>
       )}
+
+      {/* Controls */}
+      <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px' }}>
+        <button onClick={startNavigation} style={buttonStyle}>Start</button>
+        <button onClick={stopNavigation} style={buttonStyle}>Stop</button>
+        <button onClick={recenterMap} style={buttonStyle}>Recenter</button>
+      </div>
     </div>
   );
 }
+
+const buttonStyle = {
+  padding: '10px 15px',
+  background: 'white',
+  border: 'none',
+  borderRadius: '5px',
+  boxShadow: '0px 2px 10px rgba(0,0,0,0.3)',
+  cursor: 'pointer'
+};
 
 export default MapView;
