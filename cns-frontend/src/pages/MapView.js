@@ -22,6 +22,9 @@ function MapView() {
   const [currentStep, setCurrentStep] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [steps, setSteps] = useState([]);
+  const [remainingDistance, setRemainingDistance] = useState('');
+  const [remainingTime, setRemainingTime] = useState('');
+  const [arrivalTime, setArrivalTime] = useState('');
   const watchId = useRef(null);
   const mapRef = useRef(null);
 
@@ -70,6 +73,12 @@ function MapView() {
       setDirectionsResponse(results);
       setSteps(results.routes[0].legs[0].steps);
       setCurrentStep(0);
+      setRemainingDistance(results.routes[0].legs[0].distance.text);
+      setRemainingTime(results.routes[0].legs[0].duration.text);
+
+      const arrival = new Date();
+      arrival.setMinutes(arrival.getMinutes() + results.routes[0].legs[0].duration.value / 60);
+      setArrivalTime(arrival.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (error) {
       console.error("Error fetching directions:", error);
     }
@@ -83,6 +92,9 @@ function MapView() {
     setIsNavigating(false);
     setDirectionsResponse(null);
     setCurrentStep(null);
+    setRemainingDistance('');
+    setRemainingTime('');
+    setArrivalTime('');
   }
 
   function recenterMap() {
@@ -108,7 +120,7 @@ function MapView() {
   }
 
   function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // meters
+    const R = 6371e3;
     const φ1 = (lat1 * Math.PI) / 180;
     const φ2 = (lat2 * Math.PI) / 180;
     const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -119,7 +131,7 @@ function MapView() {
       Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c; // distance in meters
+    return R * c;
   }
 
   function getTurnDirection(step) {
@@ -156,18 +168,17 @@ function MapView() {
         {directionsResponse && <DirectionsRenderer directions={directionsResponse} />}
       </GoogleMap>
 
-      {/* Floating Navigation Box */}
       {isNavigating && currentStep !== null && (
         <div style={{
           position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
-          background: 'black', color: 'white', padding: '15px', borderRadius: '10px',
+          background: '#222', color: 'white', padding: '15px', borderRadius: '10px',
           boxShadow: '0px 2px 10px rgba(0,0,0,0.2)', textAlign: 'center', fontSize: '18px'
         }}>
-          <strong>{getTurnDirection(steps[currentStep])}</strong>
+          <div><strong>{getTurnDirection(steps[currentStep])}</strong></div>
+          <div>📍 {remainingDistance} | ⏳ {remainingTime} | 🕒 ETA: {arrivalTime}</div>
         </div>
       )}
 
-      {/* Controls */}
       <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px' }}>
         <button onClick={startNavigation} style={buttonStyle}>Start</button>
         <button onClick={stopNavigation} style={buttonStyle}>Stop</button>
@@ -179,7 +190,8 @@ function MapView() {
 
 const buttonStyle = {
   padding: '10px 15px',
-  background: 'white',
+  background: '#007BFF',
+  color: 'white',
   border: 'none',
   borderRadius: '5px',
   boxShadow: '0px 2px 10px rgba(0,0,0,0.3)',
