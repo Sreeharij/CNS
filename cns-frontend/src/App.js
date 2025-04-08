@@ -5,13 +5,16 @@ import Profile from './pages/Profile';
 import Auth from './components/Auth';
 import MapView from './pages/MapView';
 import UploadPage from './pages/UploadPage';
-// import './styles/App.css';
+import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
 
   return (
     <Router>
+      <div className="text-3xl font-bold text-blue-600">
+  Tailwind works!
+</div>
       <Auth setUser={setUser} />
       <Routes>
         <Route path="/" element={<Home />} />
