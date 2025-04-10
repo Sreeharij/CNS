@@ -72,8 +72,13 @@ const Index = () => {
   const handleGoogleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      await createUserProfile(auth.currentUser);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+  
+      const email = user.email || "";
+      const nameFromEmail = email.split("@")[0]; // Extract name before "@"
+  
+      await createUserProfile(user, nameFromEmail);
       navigate("/dashboard");
     } catch (err) {
       alert("Google Sign-In failed: " + err.message);

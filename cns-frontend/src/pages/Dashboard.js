@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, auth } from "../firebase/config";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { getDownloadURL, ref } from "firebase/storage";
 import { signOut } from "firebase/auth";
 
-const Home = () => {
+const Dashboard = ({ user }) => {
   const navigate = useNavigate();
-
+  const [userName, setUserName] = useState("");
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -16,6 +16,25 @@ const Home = () => {
   const dropdownRef = useRef(null);
 
   const categories = ["All", "Lab", "Canteen", "Office", "Gym", "Library"];
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (user && !user.isAnonymous) {
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            setUserName(userDoc.data().name || "");
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      } else {
+        setUserName("Guest");
+      }
+    };
+
+    fetchUserName();
+  }, [user]);
 
   // Detect click outside for dropdown
   useEffect(() => {
@@ -75,7 +94,9 @@ const Home = () => {
       <header className="bg-white p-4 shadow-sm relative">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h1 className="text-2xl font-bold">Welcome Anaswara</h1>
+          <div className="text-lg font-semibold text-nitc-darkBlue mb-4">
+            Welcome, {userName} 👋
+          </div>
             <div className="flex items-center text-nitc-blue gap-1 text-sm">
               <span>Location:</span>
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -201,4 +222,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Dashboard;

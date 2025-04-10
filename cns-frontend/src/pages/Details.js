@@ -89,11 +89,13 @@ const LocationDetail = () => {
       
       {/* Floating action button */}
       <div className="fixed bottom-6 left-6 right-6">
-        <button 
+      <button 
           className="w-full py-6 bg-nitc-blue hover:bg-nitc-darkBlue text-white rounded-xl shadow-lg"
+          onClick={() => navigate('/map', { state: locationData })}
         >
           Directions
         </button>
+
       </div>
     </div>
   );
