@@ -1,6 +1,8 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const AboutSection = () => {
+  const navigate = useNavigate();
   const features = [
     {
       title: "Interactive Map",
@@ -54,7 +56,7 @@ const AboutSection = () => {
         <div className="mt-20 text-center">
           <h3 className="text-2xl font-semibold text-nitc-darkBlue mb-4">Start Exploring NITC Today</h3>
           <p className="text-gray-600 mb-8">Join us in making campus navigation easier and more accessible for everyone</p>
-          <button className="inline-flex items-center justify-center bg-nitc-blue hover:bg-nitc-darkBlue text-white px-8 py-3 rounded-full shadow-md transition-all duration-300 hover:shadow-lg">
+          <button onClick={() => navigate("/dashboard")} className="inline-flex items-center justify-center bg-nitc-blue hover:bg-nitc-darkBlue text-white px-8 py-3 rounded-full shadow-md transition-all duration-300 hover:shadow-lg">
             Get Started Now
           </button>
         </div>

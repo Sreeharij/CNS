@@ -1,9 +1,9 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { db, storage } from "../firebase/config";
+import { db, storage, auth } from "../firebase/config";
 import { collection, getDocs } from "firebase/firestore";
 import { getDownloadURL, ref } from "firebase/storage";
+import { signOut } from "firebase/auth";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -12,8 +12,34 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const categories = ["All", "Lab", "Canteen", "Office", "Gym", "Library"];
+
+  // Detect click outside for dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  const handleCardClick = (location) => {
+    navigate(`/details/${location.id}`, { state: { location } });
+  };
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -42,29 +68,56 @@ const Home = () => {
       (activeCategory === "All" || location.type === activeCategory) &&
       (searchTerm === "" || location.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  
-  const handleCardClick = (location) => {
-    navigate(`/details/${location.id}`, { state: { location } });
-  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header section */}
-      <header className="bg-white p-4 shadow-sm">
+      {/* Header */}
+      <header className="bg-white p-4 shadow-sm relative">
         <div className="flex justify-between items-center mb-4">
           <div>
             <h1 className="text-2xl font-bold">Welcome Anaswara</h1>
             <div className="flex items-center text-nitc-blue gap-1 text-sm">
               <span>Location:</span>
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                <circle cx="12" cy="10" r="3"></circle>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
               </svg>
-              <span>Auditorium</span>
+              <span>National Institute Of Technology Calicut</span>
             </div>
           </div>
-          <div className="h-12 w-12 rounded-full bg-nitc-blue border-2 border-nitc-blue overflow-hidden">
-            <img src="https://github.com/shadcn.png" alt="User" className="h-full w-full object-cover" />
+
+          {/* Profile icon and dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <div
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="h-12 w-12 rounded-full bg-nitc-blue border-2 border-nitc-blue overflow-hidden cursor-pointer"
+            >
+              <img
+                src="https://github.com/shadcn.png"
+                alt="User"
+                className="h-full w-full object-cover"
+              />
+            </div>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-32 bg-white rounded shadow-lg border z-10">
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={() => {
+                    navigate("/profile");
+                    setDropdownOpen(false);
+                  }}
+                >
+                  Profile
+                </button>
+                <button
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
