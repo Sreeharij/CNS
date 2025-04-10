@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db, storage, auth } from "../firebase/config";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { getDownloadURL, ref } from "firebase/storage";
 import { signOut } from "firebase/auth";
 
 const Dashboard = ({ user }) => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
+  const [userFavorites, setUserFavorites] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -19,33 +20,26 @@ const Dashboard = ({ user }) => {
 
   useEffect(() => {
     const fetchUserName = async () => {
-      if (user && !user.isAnonymous) {
+      if (user) {
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
-            setUserName(userDoc.data().name || "");
+            const userData = userDoc.data();
+            setUserName(userData.name || "");
+            setUserFavorites(userData.favorites || []);
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
         }
       } else {
         setUserName("Guest");
+        setUserFavorites([]);
       }
     };
 
     fetchUserName();
   }, [user]);
-
-  // Detect click outside for dropdown
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -58,6 +52,28 @@ const Dashboard = ({ user }) => {
 
   const handleCardClick = (location) => {
     navigate(`/details/${location.id}`, { state: { location } });
+  };
+
+  const toggleFavorite = async (locationId) => {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const isFavorited = userFavorites.includes(locationId);
+
+    try {
+      await updateDoc(userRef, {
+        favorites: isFavorited ? arrayRemove(locationId) : arrayUnion(locationId),
+      });
+
+      // Update local state
+      setUserFavorites((prevFavorites) =>
+        isFavorited
+          ? prevFavorites.filter((id) => id !== locationId)
+          : [...prevFavorites, locationId]
+      );
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+    }
   };
 
   useEffect(() => {
@@ -91,12 +107,12 @@ const Dashboard = ({ user }) => {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white p-4 shadow-sm relative">
+      <header className="bg-white p-4 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <div>
-          <div className="text-lg font-semibold text-nitc-darkBlue mb-4">
-            Welcome, {userName} 👋
-          </div>
+            <div className="text-lg font-semibold text-nitc-darkBlue mb-4">
+              Welcome, {userName} 👋
+            </div>
             <div className="flex items-center text-nitc-blue gap-1 text-sm">
               <span>Location:</span>
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -107,38 +123,22 @@ const Dashboard = ({ user }) => {
             </div>
           </div>
 
-          {/* Profile icon and dropdown */}
-          <div className="relative" ref={dropdownRef}>
-            <div
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="h-12 w-12 rounded-full bg-nitc-blue border-2 border-nitc-blue overflow-hidden cursor-pointer"
-            >
-              <img
-                src="https://github.com/shadcn.png"
-                alt="User"
-                className="h-full w-full object-cover"
-              />
-            </div>
-
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-32 bg-white rounded shadow-lg border z-10">
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={() => {
-                    navigate("/profile");
-                    setDropdownOpen(false);
-                  }}
-                >
-                  Profile
-                </button>
-                <button
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </button>
-              </div>
+          {/* Profile and Logout buttons */}
+          <div className="flex items-center space-x-4">
+            {user && (
+              <button
+                onClick={() => navigate("/profile")}
+                className="px-4 py-2 text-white bg-nitc-blue rounded-md hover:bg-nitc-darkBlue"
+              >
+                Profile
+              </button>
             )}
+            <button
+              className="px-4 py-2 text-white bg-red-500 rounded-md hover:bg-red-600"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
           </div>
         </div>
 
@@ -195,7 +195,23 @@ const Dashboard = ({ user }) => {
                   alt={location.name}
                   className="w-full h-40 object-cover"
                 />
-                <div className="p-4">
+                <div className="p-4 relative">
+                  {/* Favorite star icon */}
+                  { user && (
+                    <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(location.id);
+                    }}
+                    className={`absolute top-2 right-2 text-yellow-400 hover:scale-110 transition-transform text-2xl drop-shadow ${
+                      userFavorites.includes(location.id) ? "text-yellow-400" : "text-gray-300"
+                    }`}
+                    title="Add to favorites"
+                  >
+                    {userFavorites.includes(location.id) ? "⭐" : "☆"}
+                  </button>
+                  )}
+
                   <h3 className="font-semibold text-lg">{location.name}</h3>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">Department:</span> {location.department}

@@ -15,15 +15,24 @@ const Details = lazy(() => import('./pages/Details'));
 
 function App() {
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false); // 🔥 Add this
 
   useEffect(() => {
-    // Listen to authentication state changes
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      setAuthChecked(true); // ✅ Auth status has been determined
     });
 
     return () => unsubscribe();
   }, []);
+
+  if (!authChecked) {
+    return (
+      <div className="flex items-center justify-center h-screen text-xl">
+        Checking authentication...
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -32,16 +41,16 @@ function App() {
           {/* Public route */}
           <Route path="/" element={<IndexPage user={user} />} />
 
-          {/* Protected route: only accessible if user is logged in */}
+          {/* Protected route */}
           <Route path="/profile" element={user ? <Profile user={user} /> : <Navigate to="/" replace />} />
 
           {/* Common pages */}
           <Route path="/dashboard" element={<Dashboard user={user} />} />
-          <Route path="/details/:id" element={<Details />} />
-          <Route path="/map" element={<MapView />} />
+          <Route path="/details/:locationId" element={<Details />} />
+          <Route path="/map/:locationId" element={<MapView />} />
           <Route path="/upload" element={<UploadPage />} />
 
-          {/* Redirect unknown routes to home */}
+          {/* Catch all */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>

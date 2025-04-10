@@ -6,7 +6,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  signInAnonymously,
   onAuthStateChanged,
   signOut,
 } from "firebase/auth";
@@ -16,7 +15,6 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db,initAuthPersistence } from "../firebase/config";
 
 const createUserProfile = async (user, name = "Guest") => {
-  if (user.isAnonymous) return;
 
   const userRef = doc(db, "users", user.uid);
   const docSnap = await getDoc(userRef);
@@ -33,12 +31,19 @@ const createUserProfile = async (user, name = "Guest") => {
 
 
 const Index = () => {
+
   useEffect(() => {
     initAuthPersistence().catch((err) =>
       console.error("Persistence setup failed:", err)
     );
   }, []);
 
+  const guestUser = {
+    uid: "guest_" + Date.now(),
+    name: "Guest",
+    email: "",
+    isGuest: true,
+  };
 
   const aboutRef = useRef(null);
   const navigate = useNavigate();
@@ -106,9 +111,8 @@ const Index = () => {
 
   const handleGuestLogin = async () => {
     try {
-      if (!auth.currentUser){
-        await signInAnonymously(auth);
-      }
+      // Save guest user to localStorage or context if needed
+      localStorage.setItem("guestUser", JSON.stringify(guestUser));
       navigate("/dashboard");
     } catch (err) {
       alert("Guest login failed: " + err.message);

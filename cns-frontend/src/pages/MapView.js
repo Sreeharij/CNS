@@ -1,16 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker, DirectionsRenderer } from '@react-google-maps/api';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase/config'; // adjust if your firebase config path is different
 
 const containerStyle = { width: '100vw', height: '100vh' };
 
 function MapView() {
-  const location = useLocation();
-  const destination = location.state || {};
-
-  const lat = destination?.lat ? parseFloat(destination.lat) : null;
-  const lng = destination?.lng ? parseFloat(destination.lng) : null;
-  const name = destination?.name || "Unknown Destination";
+  const { locationId } = useParams();
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GMAP_API_KEY,
@@ -18,6 +15,7 @@ function MapView() {
   });
 
   const [userLocation, setUserLocation] = useState(null);
+  const [destination, setDestination] = useState(null);
   const [directionsResponse, setDirectionsResponse] = useState(null);
   const [currentStep, setCurrentStep] = useState(null);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -28,6 +26,31 @@ function MapView() {
   const watchId = useRef(null);
   const mapRef = useRef(null);
 
+  // 🔽 Fetch destination from Firestore
+  useEffect(() => {
+    const fetchDestination = async () => {
+      try {
+        const docRef = doc(db, 'locations', locationId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setDestination({
+            name: data.name || "Unknown Destination",
+            lat: parseFloat(data.lat),
+            lng: parseFloat(data.lng)
+          });
+        } else {
+          console.error("Location not found");
+        }
+      } catch (error) {
+        console.error("Error fetching location:", error);
+      }
+    };
+
+    fetchDestination();
+  }, [locationId]);
+
+  // 🔽 Track user's real-time location
   useEffect(() => {
     if ("geolocation" in navigator) {
       watchId.current = navigator.geolocation.watchPosition(
@@ -53,31 +76,33 @@ function MapView() {
     };
   }, [isNavigating]);
 
+  // 🔽 Generate route when everything is ready
   useEffect(() => {
-    if (isLoaded && userLocation && lat !== null && lng !== null) {
+    if (isLoaded && userLocation && destination) {
       calculateRoute();
     }
-  }, [isLoaded, userLocation, lat, lng]);
+  }, [isLoaded, userLocation, destination]);
 
   async function calculateRoute() {
-    if (!window.google || !userLocation) return;
+    if (!window.google || !userLocation || !destination) return;
 
     try {
       const directionsService = new window.google.maps.DirectionsService();
       const results = await directionsService.route({
         origin: userLocation,
-        destination: { lat, lng },
+        destination: { lat: destination.lat, lng: destination.lng },
         travelMode: window.google.maps.TravelMode.WALKING,
       });
 
+      const leg = results.routes[0].legs[0];
       setDirectionsResponse(results);
-      setSteps(results.routes[0].legs[0].steps);
+      setSteps(leg.steps);
       setCurrentStep(0);
-      setRemainingDistance(results.routes[0].legs[0].distance.text);
-      setRemainingTime(results.routes[0].legs[0].duration.text);
+      setRemainingDistance(leg.distance.text);
+      setRemainingTime(leg.duration.text);
 
       const arrival = new Date();
-      arrival.setMinutes(arrival.getMinutes() + results.routes[0].legs[0].duration.value / 60);
+      arrival.setMinutes(arrival.getMinutes() + leg.duration.value / 60);
       setArrivalTime(arrival.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (error) {
       console.error("Error fetching directions:", error);
@@ -148,11 +173,12 @@ function MapView() {
   }
 
   if (!isLoaded) return <div>Loading map...</div>;
+  if (!destination) return <div>Loading destination...</div>;
 
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100vw' }}>
       <GoogleMap
-        center={userLocation || { lat, lng }}
+        center={userLocation || { lat: destination.lat, lng: destination.lng }}
         zoom={16}
         mapContainerStyle={containerStyle}
         options={{
@@ -164,7 +190,7 @@ function MapView() {
         onLoad={(map) => (mapRef.current = map)}
       >
         {userLocation && <Marker position={userLocation} label="You" />}
-        {lat && lng && <Marker position={{ lat, lng }} label="Destination" />}
+        <Marker position={{ lat: destination.lat, lng: destination.lng }} label="Destination" />
         {directionsResponse && <DirectionsRenderer directions={directionsResponse} />}
       </GoogleMap>
 

@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import { getStorage } from "firebase/storage";
 import { setPersistence, browserLocalPersistence } from "firebase/auth";
-import { getAuth, GoogleAuthProvider, signInAnonymously, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -79,7 +79,7 @@ const logout = () => {
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export default app; // <-- Now you can import `app` elsewhere
-export { auth, googleProvider, signInAnonymously };
+export { auth, googleProvider };
 export {
   signInWithGoogle,
   registerWithEmailAndPassword,
