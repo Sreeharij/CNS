@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useJsApiLoader, GoogleMap, Marker, DirectionsRenderer } from '@react-google-maps/api';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase/config'; // adjust if your firebase config path is different
+import { db } from '../firebase/config';
 
 const containerStyle = { width: '100vw', height: '100vh' };
 
 function MapView() {
   const { locationId } = useParams();
+  const navigate = useNavigate();
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.REACT_APP_GMAP_API_KEY,
@@ -76,7 +77,7 @@ function MapView() {
     };
   }, [isNavigating]);
 
-  // 🔽 Generate route when everything is ready
+  // 🔽 Generate route
   useEffect(() => {
     if (isLoaded && userLocation && destination) {
       calculateRoute();
@@ -161,7 +162,6 @@ function MapView() {
 
   function getTurnDirection(step) {
     if (!step) return "";
-
     const distance = step.distance.text;
     const maneuver = step.maneuver;
 
@@ -172,11 +172,11 @@ function MapView() {
     return `${arrow} in ${distance}`;
   }
 
-  if (!isLoaded) return <div>Loading map...</div>;
-  if (!destination) return <div>Loading destination...</div>;
+  if (!isLoaded) return <div className="text-center text-lg p-4">Loading map...</div>;
+  if (!destination) return <div className="text-center text-lg p-4">Loading destination...</div>;
 
   return (
-    <div style={{ position: 'relative', height: '100vh', width: '100vw' }}>
+    <div className="relative w-screen h-screen">
       <GoogleMap
         center={userLocation || { lat: destination.lat, lng: destination.lng }}
         zoom={16}
@@ -194,34 +194,38 @@ function MapView() {
         {directionsResponse && <DirectionsRenderer directions={directionsResponse} />}
       </GoogleMap>
 
+      {/* Floating Turn-by-turn Info */}
       {isNavigating && currentStep !== null && (
-        <div style={{
-          position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)',
-          background: '#222', color: 'white', padding: '15px', borderRadius: '10px',
-          boxShadow: '0px 2px 10px rgba(0,0,0,0.2)', textAlign: 'center', fontSize: '18px'
-        }}>
-          <div><strong>{getTurnDirection(steps[currentStep])}</strong></div>
-          <div>📍 {remainingDistance} | ⏳ {remainingTime} | 🕒 ETA: {arrivalTime}</div>
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-lg text-center text-base md:text-lg z-10">
+          <div className="font-semibold">{getTurnDirection(steps[currentStep])}</div>
+          <div className="text-sm mt-1">
+            📍 {remainingDistance} | ⏳ {remainingTime} | 🕒 ETA: {arrivalTime}
+          </div>
         </div>
       )}
 
-      <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '10px' }}>
-        <button onClick={startNavigation} style={buttonStyle}>Start</button>
-        <button onClick={stopNavigation} style={buttonStyle}>Stop</button>
-        <button onClick={recenterMap} style={buttonStyle}>Recenter</button>
+      {/* Navigation Buttons */}
+      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 z-10">
+        <button onClick={startNavigation} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-md">
+          Start
+        </button>
+        <button onClick={stopNavigation} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl shadow-md">
+          Stop
+        </button>
+        <button onClick={recenterMap} className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-xl shadow-md">
+          Recenter
+        </button>
       </div>
+
+      {/* Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="absolute top-4 left-4 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 px-3 py-1 rounded-full shadow-md z-10"
+      >
+        ← Back
+      </button>
     </div>
   );
 }
-
-const buttonStyle = {
-  padding: '10px 15px',
-  background: '#007BFF',
-  color: 'white',
-  border: 'none',
-  borderRadius: '5px',
-  boxShadow: '0px 2px 10px rgba(0,0,0,0.3)',
-  cursor: 'pointer'
-};
 
 export default MapView;
