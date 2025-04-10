@@ -27,7 +27,6 @@ function MapView() {
   const watchId = useRef(null);
   const mapRef = useRef(null);
 
-  // 🔽 Fetch destination from Firestore
   useEffect(() => {
     const fetchDestination = async () => {
       try {
@@ -51,7 +50,6 @@ function MapView() {
     fetchDestination();
   }, [locationId]);
 
-  // 🔽 Track user's real-time location
   useEffect(() => {
     if ("geolocation" in navigator) {
       watchId.current = navigator.geolocation.watchPosition(
@@ -77,7 +75,6 @@ function MapView() {
     };
   }, [isNavigating]);
 
-  // 🔽 Generate route
   useEffect(() => {
     if (isLoaded && userLocation && destination) {
       calculateRoute();
@@ -162,6 +159,7 @@ function MapView() {
 
   function getTurnDirection(step) {
     if (!step) return "";
+
     const distance = step.distance.text;
     const maneuver = step.maneuver;
 
@@ -172,11 +170,21 @@ function MapView() {
     return `${arrow} in ${distance}`;
   }
 
-  if (!isLoaded) return <div className="text-center text-lg p-4">Loading map...</div>;
-  if (!destination) return <div className="text-center text-lg p-4">Loading destination...</div>;
+  if (!isLoaded) return <div className="text-center mt-10">Loading map...</div>;
+  if (!destination) return <div className="text-center mt-10">Loading destination...</div>;
 
   return (
     <div className="relative w-screen h-screen">
+      {/* Top Bar */}
+      <div className="absolute top-0 left-0 w-full z-10 bg-white shadow-md flex items-center justify-between px-4 py-3">
+        <button onClick={() => navigate(-1)} className="text-blue-600 font-semibold text-lg">
+          ← Back
+        </button>
+        <h2 className="text-center font-bold text-lg text-gray-800 truncate">{destination.name}</h2>
+        <div className="w-16" /> {/* spacer to balance layout */}
+      </div>
+
+      {/* Map */}
       <GoogleMap
         center={userLocation || { lat: destination.lat, lng: destination.lng }}
         zoom={16}
@@ -190,40 +198,24 @@ function MapView() {
         onLoad={(map) => (mapRef.current = map)}
       >
         {userLocation && <Marker position={userLocation} label="You" />}
-        <Marker position={{ lat: destination.lat, lng: destination.lng }} label="Destination" />
+        <Marker position={{ lat: destination.lat, lng: destination.lng }} label="Dest" />
         {directionsResponse && <DirectionsRenderer directions={directionsResponse} />}
       </GoogleMap>
 
-      {/* Floating Turn-by-turn Info */}
+      {/* Navigation Info Box */}
       {isNavigating && currentStep !== null && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-lg text-center text-base md:text-lg z-10">
-          <div className="font-semibold">{getTurnDirection(steps[currentStep])}</div>
-          <div className="text-sm mt-1">
-            📍 {remainingDistance} | ⏳ {remainingTime} | 🕒 ETA: {arrivalTime}
-          </div>
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black text-white px-4 py-3 rounded-xl shadow-lg text-center text-sm z-10">
+          <div className="font-semibold text-lg">{getTurnDirection(steps[currentStep])}</div>
+          <div className="mt-1">📍 {remainingDistance} | ⏳ {remainingTime} | 🕒 ETA: {arrivalTime}</div>
         </div>
       )}
 
-      {/* Navigation Buttons */}
-      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4 z-10">
-        <button onClick={startNavigation} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl shadow-md">
-          Start
-        </button>
-        <button onClick={stopNavigation} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl shadow-md">
-          Stop
-        </button>
-        <button onClick={recenterMap} className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-xl shadow-md">
-          Recenter
-        </button>
+      {/* Action Buttons */}
+      <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 flex gap-4 z-10">
+        <button onClick={startNavigation} className="bg-green-600 text-white px-4 py-2 rounded-lg shadow hover:bg-green-700">Start</button>
+        <button onClick={stopNavigation} className="bg-red-600 text-white px-4 py-2 rounded-lg shadow hover:bg-red-700">Stop</button>
+        <button onClick={recenterMap} className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700">Recenter</button>
       </div>
-
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="absolute top-4 left-4 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 px-3 py-1 rounded-full shadow-md z-10"
-      >
-        ← Back
-      </button>
     </div>
   );
 }
