@@ -12,6 +12,7 @@ const UploadPage = () => {
     lat: "",
     lng: "",
     name: "",
+    type: "",
     tags: [],
     image: null,
     imagePath: "", // Stores "locations/filename"
@@ -57,6 +58,7 @@ const UploadPage = () => {
         lng: parseFloat(formData.lng),
         name: formData.name,
         tags: formData.tags,
+        type: formData.type,
         imagePath: formData.imagePath, // Storing only "locations/filename"
       });
 
@@ -68,6 +70,7 @@ const UploadPage = () => {
         lat: "",
         lng: "",
         name: "",
+        type: "",
         tags: [],
         image: null,
         imagePath: "",
@@ -87,6 +90,7 @@ const UploadPage = () => {
       <div className="form-group">
         <input type="text" name="name" placeholder="Name" onChange={handleChange} value={formData.name} />
         <input type="text" name="department" placeholder="Department" onChange={handleChange} value={formData.department} />
+        <input type="text" name="type" placeholder="Type" onChange={handleChange} value={formData.type} />
         <textarea name="description" placeholder="Description" onChange={handleChange} value={formData.description} />
         <input type="text" name="floor" placeholder="Floor" onChange={handleChange} value={formData.floor} />
 

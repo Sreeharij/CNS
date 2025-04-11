@@ -16,7 +16,7 @@ const Dashboard = ({ user }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  const categories = ["All", "Lab", "Canteen", "Office", "Gym", "Library"];
+  const categories = ["All", "Recreational", "Event & Seminar Venues", "Facilities", "Administrative Buildings", "Career & Development Centers"];
 
   useEffect(() => {
     const fetchUserName = async () => {
