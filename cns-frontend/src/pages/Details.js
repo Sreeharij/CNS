@@ -2,21 +2,30 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config"; // adjust this path as needed
-
+import { getDownloadURL, ref } from "firebase/storage";
+import { storage } from "../firebase/config"; 
 const LocationDetail = () => {
   const navigate = useNavigate();
   const { locationId } = useParams();
   const [locationData, setLocationData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [imageUrl, setImageUrl] = useState(null);
 
   useEffect(() => {
     const fetchLocation = async () => {
       try {
         const docRef = doc(db, "locations", locationId);
         const docSnap = await getDoc(docRef);
-
+  
         if (docSnap.exists()) {
-          setLocationData(docSnap.data());
+          const data = docSnap.data();
+          setLocationData(data);
+  
+          if (data.imagePath) {
+            const imageRef = ref(storage, data.imagePath);
+            const url = await getDownloadURL(imageRef);
+            setImageUrl(url);
+          }
         } else {
           console.log("No such location!");
         }
@@ -26,11 +35,10 @@ const LocationDetail = () => {
         setLoading(false);
       }
     };
-
+  
     fetchLocation();
-    const docRef = doc(db, "locations", locationId);
-
   }, [locationId]);
+  
 
   if (loading) {
     return (
@@ -61,10 +69,11 @@ const LocationDetail = () => {
       {/* Image Header */}
       <div className="relative h-72">
         <img 
-          src={locationData.imageUrl} 
+          src={imageUrl} 
           alt={locationData.name} 
           className="w-full h-full object-cover"
         />
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
 
         <div className="absolute top-4 left-4 right-4 flex justify-between">
